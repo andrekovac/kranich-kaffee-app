@@ -1,0 +1,5 @@
+# Phones must ask for the newest version every time, so updates always arrive.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"
