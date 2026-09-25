@@ -72,6 +72,16 @@ same-origin GET requests, never Supabase.
   never return names from a public function, never put the secret/service key in this
   repo. After any schema change: `get_advisors` (security) and `node test-db.mjs`.
   The advisor warnings about these two `security definer` functions are intended.
+  Default privileges are closed for new objects, but still add
+  `revoke execute on function ... from public, anon, authenticated;` to every new
+  function and never grant a new table to `anon`/`authenticated`.
+- To end sign-ups early or withdraw an event: set `signups_open = false` (or a past
+  `valid_until`, which also hides it; the database then refuses sign-ups).
+- Known risk, accepted: anyone could fill an event with fake names. If it happens,
+  show the owner the names and delete the fake ones:
+  `delete from public.signups where id in (...);`
+- Free plan: Supabase pauses a project after about a week without traffic. If the app
+  suddenly shows "Gerade keine Verbindung", check the project status and restore it.
 
 ## Styleguide (`Kranich-Styleguide.pdf` is the authority)
 

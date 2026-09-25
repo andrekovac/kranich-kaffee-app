@@ -82,6 +82,8 @@ function renderCoffees(coffees) {
 }
 
 async function loadPromos() {
+  // Don't redraw while someone is typing their name; the refresh waits for the next open.
+  if (promosEl.querySelector('form.join:not([hidden])')) return;
   let rows = null;
   try {
     rows = await rpc('get_promotions');

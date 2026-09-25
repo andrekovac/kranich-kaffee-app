@@ -1,11 +1,18 @@
 // Live check of the database rules with the public key only, like a visitor.
-// Usage: node test-db.mjs <openTestId> <pastTestId>
-// Create the two hidden test promotions first and delete them afterwards (see the plan).
+// Usage: node test-db.mjs <openTestId> <pastTestId> <hiddenTestId>
+// Create the three test promotions first and delete them right after (the open one is
+// briefly visible in the app, at the bottom):
+//   insert into public.promotions (title, valid_until, event_date, signups_open, capacity, sort)
+//   values ('TEST offen', null, current_date + 7, true, 2, 9999),
+//          ('TEST vorbei', null, current_date - 1, true, 5, 9999),
+//          ('TEST versteckt', current_date - 1, current_date + 7, true, 5, 9999)
+//   returning id, title;
+//   ...then: delete from public.promotions where title like 'TEST %';
 import assert from 'node:assert/strict';
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
-const [openId, pastId] = process.argv.slice(2).map(Number);
-assert.ok(openId && pastId, 'usage: node test-db.mjs <openTestId> <pastTestId>');
+const [openId, pastId, hiddenId] = process.argv.slice(2).map(Number);
+assert.ok(openId && pastId && hiddenId, 'usage: node test-db.mjs <openTestId> <pastTestId> <hiddenTestId>');
 const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
 const rest = (path, init = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers, ...init });
 const rpc = async (name, body = {}) => {
@@ -26,11 +33,13 @@ const list = await rpc('get_promotions');
 assert.ok(list.ok);
 assert.ok(list.data.length >= 1);
 assert.ok(list.data.every(p => !('name' in p)));
-assert.ok(!list.data.some(p => p.id === openId || p.id === pastId), 'test rows stay hidden');
+assert.ok(list.data.some(p => p.id === openId), 'open test row is listed');
+assert.ok(!list.data.some(p => p.id === pastId || p.id === hiddenId), 'ended rows stay hidden');
 
 // Refusals
 assert.equal((await rpc('sign_up', { p_promotion_id: 0, p_name: 'A' })).data.message, 'not_found');
 assert.equal((await rpc('sign_up', { p_promotion_id: pastId, p_name: 'A' })).data.message, 'past');
+assert.equal((await rpc('sign_up', { p_promotion_id: hiddenId, p_name: 'A' })).data.message, 'closed');
 assert.equal((await signUp('x'.repeat(61))).data.message, 'bad_name');
 assert.equal((await signUp('   ')).data.message, 'bad_name');
 
