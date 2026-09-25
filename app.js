@@ -6,7 +6,7 @@ const coffeesEl = document.getElementById('coffees');
 const kwEl = document.getElementById('kw');
 let promos = [];
 
-kwEl.textContent = `KW ${isoWeek()} ${seasonIcon()}`;
+kwEl.textContent = `Woche ${isoWeek()} ${seasonIcon()}`;
 
 async function getText(file) {
   const res = await fetch(file, { cache: 'no-store' });
