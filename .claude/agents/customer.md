@@ -1,6 +1,6 @@
 ---
-name: kundin
-description: Looks at the Kranich Kaffee app like a first-time customer on a phone and lists what is confusing. Use after changes to the page or the texts. Read only.
+name: customer
+description: Looks at the Kranich Kaffee app like a first-time customer on a phone and lists what is confusing. Use before a final app test and after layout changes. Read only.
 tools: Read, Grep, Glob
 model: haiku
 ---
