@@ -3,7 +3,8 @@
 Phone app (PWA) for the customers of Kranich Kaffee, a small (fictional) coffee
 roastery in Hamburg-Rothenburgsort. Customers add it to their home screen. It shows
 current promotions and events (the most important part) and the three coffees, with
-buttons to copy a discount code, add an event to the calendar, or sign up by email.
+buttons to copy a discount code, add an event to the calendar, or sign up for an
+event by name ("Ich bin dabei").
 
 This is a workshop demo. The owner is not technical and often works from the Claude
 app on their phone, with no computer running.
@@ -17,17 +18,22 @@ app on their phone, with no computer running.
 
 ## How it is built
 
-Plain static files. No build step, no npm dependencies, no database, no logins.
+Plain static files. No build step, no npm dependencies, no logins. Promotions and
+sign-ups live in Supabase; the page calls it directly with plain `fetch`.
 
 | File | Job |
 |---|---|
 | `index.html` | the page: layout, colours, fonts (design "Wochenblatt") |
-| `parse.js` | reads `Aktionen.md` / `Sortiment.md`, dates, expiry, labels, calendar file, calendar week and season icon |
-| `app.js` | fetches the two `.md` files on every open, renders, wires the buttons |
+| `parse.js` | pure logic: reads `Sortiment.md`, maps database rows, expiry, labels, calendar file, remembered sign-ups, calendar week and season icon |
+| `app.js` | loads promotions from Supabase and coffees from `Sortiment.md` on every open, renders, buttons, sign-up form, offline copy |
+| `config.js` | Supabase URL and publishable key (public by design) |
+| `datenschutz.html` | privacy page (linked in the footer) |
 | `sw.js` | service worker: network first, cached copy only when offline |
 | `manifest.webmanifest` | app name, icons, opens without browser bar |
 | `netlify.toml` | `Cache-Control: no-cache` for everything |
 | `test.mjs` | tests for `parse.js` |
+| `test-db.mjs` | live test of the database rules with the public key (see its header) |
+| `supabase/migrations/` | the SQL that created the database, for the record |
 | `icon-192.png`, `icon-512.png` | app icon (opaque, used for iPhone too) |
 | `.claude/agents/` | review sub-agents (see below) |
 | `.claude/settings.json` | turns on the Superpowers plugin in every session, also cloud ones |
@@ -35,31 +41,37 @@ Plain static files. No build step, no npm dependencies, no database, no logins.
 
 Updates must always reach installed apps. Never make the service worker cache-first,
 never add long cache headers, never add a version-pinned asset cache. The owner
-tests this by adding a promotion and reopening the app on a phone.
+tests this by adding a promotion and reopening the app on a phone. Promotions are
+fetched from Supabase with `cache: 'no-store'`; the service worker only touches
+same-origin GET requests, never Supabase.
 
 ## Where the data lives
 
-- `Aktionen.md`: promotions and events. The ONLY place for them. The app reads it live.
+- **Promotions and events: Supabase** (see next section). `Aktionen.md` is gone.
 - `Sortiment.md`: the coffees. Only entries with a `Preis` count. Everything after the
   `---` line (the English note) is ignored.
-- Ended entries hide themselves the day after their date. No need to delete them,
-  but tidy up old ones when you are editing anyway.
 
-### Format for `Aktionen.md` (keep it exactly like this)
+## Promotions and sign-ups (Supabase)
 
-```
-## Titel der Aktion
-
-- Rabattcode: CODE           (optional, adds a "Kopieren" button)
-- Gilt bis: TT.MM.JJJJ       (optional, hidden the day after)
-- Datum: Wochentag, TT.MM.JJJJ, HH:MM bis HH:MM   (optional, adds "In den Kalender", hidden the day after)
-- Ort: Adresse               (optional, goes into the calendar entry)
-- Anmeldung: per Mail an name@example.de   (optional, adds "Per Mail anmelden")
-- Text: Ein bis zwei kurze Sätze.
-```
-
-- Always write the year with 4 digits. An entry without any date shows forever.
-- Entries show in file order. Put the most important one first.
+- Supabase project `kranich-kaffee` (ref `vgdrahxmudzqwxmbdwgb`), Frankfurt, free plan.
+  Use the Supabase connector (`execute_sql`, `apply_migration`).
+- `public.promotions`: `title`, `text`, `code`, `valid_until`, `event_date`,
+  `start_time`, `end_time`, `place`, `signups_open`, `capacity`, `sort`. A new or changed
+  row is live on the next app open, no push needed. Entries hide themselves the day
+  after `valid_until` (or `event_date` if there is no `valid_until`). Lower `sort` shows first.
+- A promotion with a code: set `code` and `valid_until`. An event: set `event_date`
+  (and times, `place`). Sign-ups: `signups_open = true`, optional `capacity`.
+- `public.signups`: `promotion_id`, `name`, `created_at`. Deleted automatically 14 days
+  after the event (pg_cron job `delete-old-signups`).
+- "Wer kommt zum Cupping?":
+  `select s.name, s.created_at from public.signups s join public.promotions p on p.id = s.promotion_id where p.title ilike '%cupping%' order by s.created_at;`
+- Texts in the table follow the styleguide below. Run the `texter` agent on new ones.
+- **Security, never break this:** visitors (`anon`, `authenticated`) have NO table
+  privileges and NO RLS policies. They can only execute `public.get_promotions()` and
+  `public.sign_up(bigint, text)`. Never grant table access, never add policies for them,
+  never return names from a public function, never put the secret/service key in this
+  repo. After any schema change: `get_advisors` (security) and `node test-db.mjs`.
+  The advisor warnings about these two `security definer` functions are intended.
 
 ## Styleguide (`Kranich-Styleguide.pdf` is the authority)
 
@@ -79,6 +91,7 @@ tests this by adding a promotion and reopening the app on a phone.
 - Local preview: `python3 -m http.server 8080`, then open http://localhost:8080.
 - After changing promotions or any customer text: run the `texter` sub-agent and fix
   what it finds before saving.
+- After database changes: `node test-db.mjs` (see its header for the hidden test rows).
 - Before going live and after new features: run the `datenschutz` sub-agent.
 - After layout changes: run the `kundin` sub-agent.
 
@@ -101,17 +114,6 @@ tests this by adding a promotion and reopening the app on a phone.
   starts from a fresh clone of GitHub, so only what is pushed to `main` exists there.
   Always push before ending a session, and `git pull --rebase` before you start
   (phone sessions may have pushed changes, for example the calendar week line).
-
-## Open work: Supabase (not started)
-
-Agreed 25.09.2026, not built yet. The app still runs on `Aktionen.md` and does NOT
-use Supabase. Plan: promotions come from a Supabase database (Frankfurt) and visitors
-can sign up for events by name, with a capacity limit. Read
-`docs/superpowers/specs/2026-09-25-supabase-promotions-signups-design.md` (design) and
-`docs/superpowers/plans/2026-09-25-supabase-promotions-signups.md` (task list, use the
-`superpowers:subagent-driven-development` or `superpowers:executing-plans` skill).
-Before creating the project, check that the cost is $0 and confirm with the owner.
-Until this is built, keep working with `Aktionen.md` as described above.
 
 ## Saving
 

@@ -10,8 +10,10 @@ A friend sent you the app link and you open it on your phone (about 375 px wide)
 You are not technical and you have never been to the shop.
 
 Look at the app through its files: `index.html` (layout and styles), `app.js` (what
-the buttons do), `Aktionen.md` (promotions and events shown at the top) and
-`Sortiment.md` (the coffees). Imagine the screen from top to bottom.
+the buttons do, including the "Ich bin dabei" sign-up for events), `parse.js`
+(labels and messages), `Sortiment.md` (the coffees) and `datenschutz.html`. The
+promotions and events come from a database: the main session pastes the current
+ones into your task. Imagine the screen from top to bottom.
 
 Report, in German and in plain words:
 - What is confusing or unclear (words, labels, dates, buttons).
