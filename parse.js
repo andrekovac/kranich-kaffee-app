@@ -1,5 +1,6 @@
-// Reads the simple Markdown format of Aktionen.md and Sortiment.md.
-// Format: "## Title", then "- Key: value" lines (keys are case-insensitive).
+// Pure logic of the app: reading Sortiment.md, turning database rows into
+// promotions, labels, calendar files and remembered sign-ups. Tested by test.mjs.
+// Sortiment.md format: "## Title", then "- Key: value" lines (keys are case-insensitive).
 // Following non-empty lines continue the value; a blank line ends it.
 
 export function parseSections(md) {
@@ -29,38 +30,8 @@ export function parseSections(md) {
   return sections;
 }
 
-export function parseWhen(value = '') {
-  const d = value.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-  if (!d) return null;
-  // Times look like "11:00" or "11.00"; the date is removed first so it is not read as a time.
-  const times = [...value.replace(d[0], '').matchAll(/(\d{1,2})[:.](\d{2})(?!\d)/g)].map(m => m[1].padStart(2, '0') + m[2]);
-  return {
-    date: d[3] + d[2].padStart(2, '0') + d[1].padStart(2, '0'),
-    start: times[0] || null,
-    end: times[1] || null,
-  };
-}
-
 export function dateKey(d) {
   return String(d.getFullYear()) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
-}
-
-export function parsePromotions(md, now = new Date()) {
-  const today = dateKey(now);
-  return parseSections(md)
-    .map(({ title, fields: f, body }) => ({
-      title,
-      text: f['text'] || body,
-      code: f['rabattcode'] || null,
-      until: parseWhen(f['gilt bis']),
-      when: parseWhen(f['datum']),
-      place: f['ort'] || null,
-      email: (f['anmeldung'] || '').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/)?.[0] || null,
-    }))
-    .filter(p => {
-      const end = p.until || p.when;
-      return !end || end.date >= today; // visible through the whole last day
-    });
 }
 
 export function parseCoffees(md) {
@@ -75,6 +46,63 @@ export function parseCoffees(md) {
       price: f['preis'],
       text: body,
     }));
+}
+
+// Turns a row from get_promotions() into the shape the page uses.
+export function fromRow(r) {
+  const day = d => (d ? d.replaceAll('-', '') : null);            // "2026-10-03" -> "20261003"
+  const hhmm = t => (t ? t.slice(0, 5).replace(':', '') : null);  // "11:00:00" -> "1100"
+  const when = r.event_date ? { date: day(r.event_date), start: hhmm(r.start_time), end: hhmm(r.end_time) } : null;
+  return {
+    id: r.id,
+    title: r.title,
+    text: r.text || '',
+    code: r.code || null,
+    until: r.valid_until ? { date: day(r.valid_until), start: null, end: null } : null,
+    when,
+    place: r.place || null,
+    signupsOpen: Boolean(r.signups_open && when),
+    placesLeft: r.places_left ?? null,
+  };
+}
+
+// Visible through the whole last day. The database filters too; this covers offline copies.
+export function isVisible(p, now = new Date()) {
+  const end = p.until || p.when;
+  return !end || end.date >= dateKey(now);
+}
+
+export function placesLabel(n) {
+  if (n == null) return '';
+  if (n <= 0) return 'Ausgebucht';
+  return n === 1 ? 'Noch 1 Platz frei' : `Noch ${n} Plätze frei`;
+}
+
+const SIGNUP_ERRORS = {
+  full: 'Leider schon ausgebucht.',
+  past: 'Anmeldung ist geschlossen.',
+  closed: 'Anmeldung ist geschlossen.',
+  not_found: 'Anmeldung ist geschlossen.',
+  bad_name: 'Bitte gib einen Namen an (höchstens 60 Zeichen).',
+};
+export function signupError(code) {
+  return SIGNUP_ERRORS[code] || 'Gerade keine Verbindung. Versuch es gleich noch mal.';
+}
+
+// Which events this phone signed up for: { promotionId: name }. Storage may be missing or throw.
+const JOINED_KEY = 'kranich-joined';
+export function loadJoined(storage) {
+  try {
+    const data = JSON.parse(storage?.getItem(JOINED_KEY) || '{}');
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}
+export function saveJoined(storage, id, name) {
+  const joined = { ...loadJoined(storage), [id]: name };
+  try { storage?.setItem(JOINED_KEY, JSON.stringify(joined)); } catch { /* not remembered, still signed up */ }
+  return joined;
 }
 
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
