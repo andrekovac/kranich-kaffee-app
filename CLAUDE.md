@@ -84,9 +84,10 @@ tests this by adding a promotion and reopening the app on a phone.
 ## Deploying
 
 - Code lives on GitHub: `andrekovac/kranich-kaffee-app` (public), branch `main`.
-- Netlify is meant to deploy every push to `main` automatically (no build command,
-  publish directory = repo root). Status on 25.09.2026: NOT connected yet. If the
-  owner asks to go live, connect the repo to Netlify first.
+- Live at https://kranich-kaffee-app.netlify.app (Netlify project `kranich-kaffee-app`).
+- Netlify is linked to the GitHub repo: every push to `main` goes live within about a
+  minute. No build command, publish directory = repo root. So "save to GitHub" is also
+  "publish".
 - `.mcp.json` lists the official Netlify and Supabase MCP servers for this project.
   Each environment must log in to them once. The app does not use Supabase.
 
