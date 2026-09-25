@@ -91,6 +91,24 @@ export function label(p) {
   return 'Aktion';
 }
 
+export function isoWeek(now = new Date()) {
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7; // Montag = 0
+  d.setUTCDate(d.getUTCDate() - dayNum + 3); // Donnerstag der Woche
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  return 1 + Math.round((d - firstThursday) / (7 * 24 * 3600 * 1000));
+}
+
+// Meteorologische Jahreszeit nach Monat: Winter -> Schnee, Sommer -> Sonne, dazwischen -> Regen.
+export function seasonIcon(now = new Date()) {
+  const month = now.getMonth() + 1;
+  if (month === 12 || month <= 2) return '❄️';
+  if (month >= 6 && month <= 8) return '☀️';
+  return '🌧️';
+}
+
 export function toICS(p, stamp = new Date()) {
   const esc = s => String(s).replace(/[\\;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
   const w = p.when;

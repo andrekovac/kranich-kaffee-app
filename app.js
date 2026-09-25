@@ -1,9 +1,12 @@
-import { parsePromotions, parseCoffees, label, toICS } from './parse.js';
+import { parsePromotions, parseCoffees, label, toICS, isoWeek, seasonIcon } from './parse.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const promosEl = document.getElementById('promos');
 const coffeesEl = document.getElementById('coffees');
+const kwEl = document.getElementById('kw');
 let promos = [];
+
+kwEl.textContent = `Woche ${isoWeek()} ${seasonIcon()}`;
 
 async function getText(file) {
   const res = await fetch(file, { cache: 'no-store' });
