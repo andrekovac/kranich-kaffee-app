@@ -35,7 +35,8 @@ function signupBlock(p, i) {
   const name = joined[p.id];
   let inner;
   if (name) {
-    inner = `<p class="dabei">Du bist dabei, ${esc(name)}.</p>`;
+    inner = `<p class="dabei">Du bist dabei, ${esc(name)}.</p>
+      <p class="klein">Eine Mail bekommst du nicht. Absagen kannst du per Mail an hallo@kranich-kaffee.example.</p>`;
   } else if (p.placesLeft === 0) {
     inner = '<p class="dabei">Ausgebucht</p>';
   } else {
