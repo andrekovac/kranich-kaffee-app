@@ -1,10 +1,14 @@
-import { parsePromotions, parseCoffees, label, toICS, isoWeek, seasonIcon } from './parse.js';
+import { parseCoffees, label, toICS, isoWeek, seasonIcon, fromRow, isVisible, placesLabel, signupError, loadJoined, saveJoined } from './parse.js';
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const promosEl = document.getElementById('promos');
 const coffeesEl = document.getElementById('coffees');
 const kwEl = document.getElementById('kw');
+const store = (() => { try { return localStorage; } catch { return null; } })();
+const SAVED_KEY = 'kranich-promos';
 let promos = [];
+let joined = loadJoined(store);
 
 kwEl.textContent = `Woche ${isoWeek()} ${seasonIcon()}`;
 
@@ -12,6 +16,42 @@ async function getText(file) {
   const res = await fetch(file, { cache: 'no-store' });
   if (!res.ok) throw new Error(`${file}: ${res.status}`);
   return res.text();
+}
+
+// Calls a database function. Throws an error whose .code is the database's error code.
+async function rpc(name, body = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw Object.assign(new Error(data?.message || 'network'), { code: data?.message });
+  return data;
+}
+
+function signupBlock(p, i) {
+  const name = joined[p.id];
+  let inner;
+  if (name) {
+    inner = `<p class="dabei">Du bist dabei, ${esc(name)}.</p>`;
+  } else if (p.placesLeft === 0) {
+    inner = '<p class="dabei">Ausgebucht</p>';
+  } else {
+    inner = `
+      <button class="btn" data-join="${i}">Ich bin dabei</button>
+      <form class="join" data-form="${i}" hidden>
+        <label>Wie heißt du?<input name="name" maxlength="60" autocomplete="given-name" required></label>
+        <button class="btn">Anmelden</button>
+        <p class="fehler" role="alert"></p>
+      </form>`;
+  }
+  return `<div class="signup">
+    ${!name && p.placesLeft > 0 ? `<p class="label">${esc(placesLabel(p.placesLeft))}</p>` : ''}
+    ${inner}
+    <p class="klein">Wir speichern nur deinen Namen für diesen Termin und löschen ihn 14 Tage danach.</p>
+  </div>`;
 }
 
 function renderPromos() {
@@ -25,10 +65,8 @@ function renderPromos() {
       <h2>${esc(p.title)}</h2>
       ${p.text ? `<p>${esc(p.text)}</p>` : ''}
       ${p.code ? `<div class="code"><span>${esc(p.code)}</span><button class="btn rot" data-copy="${i}">Kopieren</button></div>` : ''}
-      ${p.when || p.email ? `<div class="actions">
-        ${p.when ? `<button class="btn" data-cal="${i}">In den Kalender</button>` : ''}
-        ${p.email ? `<a class="btn leise" href="mailto:${esc(p.email)}?subject=${encodeURIComponent('Anmeldung: ' + p.title)}">Per Mail anmelden</a>` : ''}
-      </div>` : ''}
+      ${p.when ? `<div class="actions"><button class="btn leise" data-cal="${i}">In den Kalender</button></div>` : ''}
+      ${p.signupsOpen ? signupBlock(p, i) : ''}
     </article>`).join('');
 }
 
@@ -42,20 +80,39 @@ function renderCoffees(coffees) {
     </article>`).join('');
 }
 
-async function load() {
+async function loadPromos() {
+  let rows = null;
   try {
-    const [aktionen, sortiment] = await Promise.all([getText('Aktionen.md'), getText('Sortiment.md')]);
-    promos = parsePromotions(aktionen);
-    renderPromos();
-    renderCoffees(parseCoffees(sortiment));
+    rows = await rpc('get_promotions');
+    try { store?.setItem(SAVED_KEY, JSON.stringify(rows)); } catch { /* no offline copy */ }
   } catch {
-    if (!promos.length) promosEl.innerHTML = '<p class="hinweis">Gerade keine Verbindung. Versuch es gleich noch mal.</p>';
+    try { rows = JSON.parse(store?.getItem(SAVED_KEY) || 'null'); } catch { rows = null; }
   }
+  if (rows) {
+    promos = rows.map(fromRow).filter(p => isVisible(p));
+    renderPromos();
+  } else if (!promos.length) {
+    promosEl.innerHTML = '<p class="hinweis">Gerade keine Verbindung. Versuch es gleich noch mal.</p>';
+  }
+}
+
+async function load() {
+  await Promise.all([
+    loadPromos(),
+    getText('Sortiment.md').then(md => renderCoffees(parseCoffees(md)), () => {}),
+  ]);
 }
 
 promosEl.addEventListener('click', async e => {
   const btn = e.target.closest('button');
   if (!btn) return;
+  if (btn.dataset.join) {
+    const form = promosEl.querySelector(`[data-form="${btn.dataset.join}"]`);
+    btn.hidden = true;
+    form.hidden = false;
+    form.elements.name.focus();
+    return;
+  }
   if (btn.dataset.copy) {
     let copied = await navigator.clipboard?.writeText(promos[btn.dataset.copy].code).then(() => true, () => false);
     if (!copied) {
@@ -80,6 +137,26 @@ promosEl.addEventListener('click', async e => {
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }
+  }
+});
+
+promosEl.addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.target;
+  const p = promos[form.dataset.form];
+  const name = form.elements.name.value.trim();
+  const button = form.querySelector('button');
+  const error = form.querySelector('.fehler');
+  button.disabled = true;
+  error.textContent = '';
+  try {
+    await rpc('sign_up', { p_promotion_id: p.id, p_name: name });
+    joined = saveJoined(store, p.id, name);
+    renderPromos();
+    loadPromos(); // fresh places left
+  } catch (err) {
+    error.textContent = signupError(err.code);
+    button.disabled = false;
   }
 });
 

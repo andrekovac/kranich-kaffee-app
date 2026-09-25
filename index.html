@@ -39,6 +39,16 @@
     .price { font-weight: 600; }
     .hinweis { padding: 20px; }
     footer { padding: 24px 20px calc(env(safe-area-inset-bottom) + 32px); font-size: 14px; color: var(--braun); border-top: 1px solid var(--linie); }
+    .signup { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--linie); }
+    .signup .label { margin-bottom: 8px; }
+    .join label { display: block; font-weight: 600; margin-bottom: 8px; }
+    .join input { display: block; width: 100%; margin-top: 6px; font: 16px Inter, sans-serif; padding: 10px 12px;
+                  border: 1.5px solid var(--blau); border-radius: 10px; background: #fff; color: var(--blau); }
+    .dabei { font-weight: 600; margin: 0; }
+    .fehler { color: var(--rot); font-weight: 600; margin: 8px 0 0; }
+    .fehler:empty { display: none; }
+    .klein { font-size: 13px; color: var(--braun); margin: 10px 0 0; }
+    footer a { color: var(--braun); }
   </style>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-192.png">
@@ -56,7 +66,7 @@
     <main id="promos"><p class="hinweis">Einen Moment, wir holen die Neuigkeiten.</p></main>
     <h2 class="section-title">Unser Kaffee</h2>
     <section id="coffees"></section>
-    <footer>Kranich Kaffee, Billwerder Neuer Deich 40, 20539 Hamburg-Rothenburgsort</footer>
+    <footer>Kranich Kaffee, Billwerder Neuer Deich 40, 20539 Hamburg-Rothenburgsort · <a href="datenschutz.html">Datenschutz</a></footer>
   </div>
   <script type="module" src="app.js"></script>
 </body>
