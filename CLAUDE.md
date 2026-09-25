@@ -89,8 +89,11 @@ tests this by adding a promotion and reopening the app on a phone.
 - Netlify is linked to the GitHub repo: every push to `main` goes live within about a
   minute. No build command, publish directory = repo root. So "save to GitHub" is also
   "publish".
-- `.mcp.json` lists the official Netlify and Supabase MCP servers for this project.
-  Each environment must log in to them once.
+- Netlify and Supabase come from the owner's Claude account connectors (checked
+  25.09.2026: Netlify site `kranich-kaffee-app` and the Supabase organization
+  `andrekovac` both answer). `.mcp.json` lists the same two official MCP servers as a
+  fallback. If a tool says "needs authentication", tell the owner to connect it in
+  the Claude connector settings.
 - Nothing in the repo depends on the owner's computer: no secrets, no absolute paths.
   `.netlify/` (local link to the site) is git-ignored and not needed, deploys go
   through GitHub.
