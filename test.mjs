@@ -1,7 +1,7 @@
 // Run with: node test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parsePromotions, parseCoffees, label, toICS } from './parse.js';
+import { parsePromotions, parseCoffees, label, toICS, isoWeek, seasonIcon } from './parse.js';
 
 const aktionen = readFileSync(new URL('./Aktionen.md', import.meta.url), 'utf8');
 const sortiment = readFileSync(new URL('./Sortiment.md', import.meta.url), 'utf8');
@@ -74,5 +74,13 @@ assert.match(ics, /\r\nLOCATION:Kranich Kaffee\\, Billwerder Neuer Deich 40\\, /
 const allDay = toICS(roest);
 assert.match(allDay, /\r\nDTSTART;VALUE=DATE:20261001\r\n/);
 assert.match(allDay, /\r\nDTEND;VALUE=DATE:20261002\r\n/);
+
+// Kalenderwoche und Jahreszeiten-Icon
+assert.equal(isoWeek(day(2026, 9, 24)), 39);
+assert.equal(isoWeek(day(2026, 1, 1)), 1);
+assert.equal(isoWeek(day(2026, 12, 31)), 53);
+assert.equal(seasonIcon(day(2026, 1, 15)), '❄️');
+assert.equal(seasonIcon(day(2026, 7, 15)), '☀️');
+assert.equal(seasonIcon(day(2026, 9, 24)), '🌧️');
 
 console.log('OK: alle Tests bestanden');
