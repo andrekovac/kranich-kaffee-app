@@ -22,7 +22,7 @@ Plain static files. No build step, no npm dependencies, no database, no logins.
 | File | Job |
 |---|---|
 | `index.html` | the page: layout, colours, fonts (design "Wochenblatt") |
-| `parse.js` | reads `Aktionen.md` / `Sortiment.md`, dates, expiry, labels, calendar file |
+| `parse.js` | reads `Aktionen.md` / `Sortiment.md`, dates, expiry, labels, calendar file, calendar week and season icon |
 | `app.js` | fetches the two `.md` files on every open, renders, wires the buttons |
 | `sw.js` | service worker: network first, cached copy only when offline |
 | `manifest.webmanifest` | app name, icons, opens without browser bar |
@@ -30,6 +30,7 @@ Plain static files. No build step, no npm dependencies, no database, no logins.
 | `test.mjs` | tests for `parse.js` |
 | `icon-192.png`, `icon-512.png` | app icon (opaque, used for iPhone too) |
 | `.claude/agents/` | review sub-agents (see below) |
+| `.claude/settings.json` | turns on the Superpowers plugin in every session, also cloud ones |
 | `docs/superpowers/` | the approved design (spec) and the build plan |
 
 Updates must always reach installed apps. Never make the service worker cache-first,
@@ -89,7 +90,25 @@ tests this by adding a promotion and reopening the app on a phone.
   minute. No build command, publish directory = repo root. So "save to GitHub" is also
   "publish".
 - `.mcp.json` lists the official Netlify and Supabase MCP servers for this project.
-  Each environment must log in to them once. The app does not use Supabase.
+  Each environment must log in to them once.
+- Nothing in the repo depends on the owner's computer: no secrets, no absolute paths.
+  `.netlify/` (local link to the site) is git-ignored and not needed, deploys go
+  through GitHub.
+- The owner also edits from the Claude app on the phone (cloud session). Such a session
+  starts from a fresh clone of GitHub, so only what is pushed to `main` exists there.
+  Always push before ending a session, and `git pull --rebase` before you start
+  (phone sessions may have pushed changes, for example the calendar week line).
+
+## Open work: Supabase (not started)
+
+Agreed 25.09.2026, not built yet. The app still runs on `Aktionen.md` and does NOT
+use Supabase. Plan: promotions come from a Supabase database (Frankfurt) and visitors
+can sign up for events by name, with a capacity limit. Read
+`docs/superpowers/specs/2026-09-25-supabase-promotions-signups-design.md` (design) and
+`docs/superpowers/plans/2026-09-25-supabase-promotions-signups.md` (task list, use the
+`superpowers:subagent-driven-development` or `superpowers:executing-plans` skill).
+Before creating the project, check that the cost is $0 and confirm with the owner.
+Until this is built, keep working with `Aktionen.md` as described above.
 
 ## Saving
 
