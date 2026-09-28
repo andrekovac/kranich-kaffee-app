@@ -65,7 +65,7 @@ same-origin GET requests, never Supabase.
   after the event (pg_cron job `delete-old-signups`).
 - "Wer kommt zum Cupping?":
   `select s.name, s.created_at from public.signups s join public.promotions p on p.id = s.promotion_id where p.title ilike '%cupping%' order by s.created_at;`
-- Texts in the table follow the styleguide below. Run the `texter` agent on new ones.
+- Texts in the table follow the styleguide below. Run the `copywriter` agent on new ones.
 - **Security, never break this:** visitors (`anon`, `authenticated`) have NO table
   privileges and NO RLS policies. They can only execute `public.get_promotions()` and
   `public.sign_up(bigint, text)`. Never grant table access, never add policies for them,
@@ -99,11 +99,12 @@ same-origin GET requests, never Supabase.
 
 - `node test.mjs` must print `OK: alle Tests bestanden`.
 - Local preview: `python3 -m http.server 8080`, then open http://localhost:8080.
-- After changing promotions or any customer text: run the `texter` sub-agent and fix
-  what it finds before saving.
+- After changing promotions or any customer text: run the `copywriter` sub-agent and
+  fix what it finds before saving.
 - After database changes: `node test-db.mjs` (see its header for the hidden test rows).
-- Before going live and after new features: run the `datenschutz` sub-agent.
-- After layout changes: run the `kundin` sub-agent.
+- Before a final test of the app and after layout changes: run the `customer` sub-agent.
+- Before every push, and whenever a form, font, script or database is added: run the
+  `privacy` sub-agent.
 
 ## Deploying
 
@@ -127,5 +128,6 @@ same-origin GET requests, never Supabase.
 
 ## Saving
 
-When the owner says "save to GitHub" or "Speicher auf GitHub": run the tests, commit
-all changes with a short, clear English message, and push to `main`.
+When the owner says "save to GitHub" or "Speicher auf GitHub": run the tests, run the
+`privacy` and `copywriter` sub-agents and fix what they find, commit all changes with
+a short, clear English message, and push to `main`.

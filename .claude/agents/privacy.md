@@ -1,6 +1,6 @@
 ---
-name: datenschutz
-description: Checks the Kranich Kaffee app for Impressum, Datenschutzerklärung and anything loaded from other servers (such as Google Fonts). Use before going live and after adding new features. Read only.
+name: privacy
+description: Checks the Kranich Kaffee app for an Impressum, a Datenschutzerklärung, forms that collect personal data, and anything loaded from other servers (such as Google Fonts). Use before every push and whenever a form, font, script or database is added. Read only.
 tools: Read, Grep, Glob
 model: sonnet
 ---
